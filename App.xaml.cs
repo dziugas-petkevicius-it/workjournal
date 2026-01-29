@@ -13,8 +13,8 @@
             {
                 Title = "WorkJournal",
 #if DEBUG
-                Width = 429,   // width in DIPs
-                Height = 929   // height in DIPs
+                Width = 1492,
+                Height = 932
 #endif
             };
 

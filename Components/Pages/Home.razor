@@ -4,22 +4,37 @@
 @inject ILogger<Home> Logger
 
 <div class="flex p-4 bg-slate-100 h-full gap-2 select-none">
-    <CalendarGrid @bind-SelectedWeek="SelectedWeek" />
+    <CalendarGrid @bind-SelectedWeek="SelectedWeek"
+                  @bind-VacationWeek="VacationWeek" />
 
-    @if (SelectedWeek != null && SelectedWeek.Count > 0)
+    @if (SelectedWeek != null && SelectedWeek.Count > 0 && !IsVacationWeek)
     {
         <CalendarWeekInfo SelectedWeek="@(SelectedWeek.Where(d => d.HasValue).Select(d => d!.Value).ToList())" />
     }
+    else if (IsVacationWeek)
+    {
+        <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center bg-red-100">
+            <span class="text-2xl text-red-700 font-semibold">
+                Atostogų savaitė
+            </span>
+        </div>
+    }
     else
     {
-        <div class="flex-1 p-4 rounded-lg shadow-md">
-            <h1>Pasirinkite savaite</h1>
+        <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center">
+            <span class="text-4xl">Pasirinkite darbo savaitę</span>
         </div>
     }
 </div>
 
 @code {
     public List<DateTime?> SelectedWeek { get; set; } = new();
+    public List<DateTime?> VacationWeek { get; set; } = new();
+
+    private bool IsVacationWeek =>
+        VacationWeek != null &&
+        SelectedWeek != null &&
+        VacationWeek.Intersect(SelectedWeek).Any();
 
     public Home()
     {
