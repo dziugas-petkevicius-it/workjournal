@@ -10,54 +10,54 @@
         </h2>
     *@
     <div class="relative">
-        <div class="grid grid-cols-2 gap-6">
-            <div>
-                <label class="block text-sm font-medium">Šeš.val.D</label>
-                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.SaturdayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
+        <div class="grid grid-cols-4 grid-rows-5 gap-6">
+            <div class="col-start-1">
+                <label class="block text-md font-medium">Šeš.val.D</label>
+                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.SaturdayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Sek.val.D</label>
-                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.SundayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
+            <div class="col-start-2">
+                <label class="block text-md font-medium">Sek.val.D</label>
+                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.SundayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Pravažiuota (Km)</label>
-                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.KilometersDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
+            <div class="col-start-1">
+                <label class="block text-md font-medium">Pravažiuota (Km)</label>
+                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.KilometersDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Dirbta dienų</label>
-                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.DaysWorked" @bind-value:event="oninput" disabled="@IsDisabled"  />
+            <div class="col-start-2">
+                <label class="block text-md font-medium">Dirbta dienų</label>
+                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.DaysWorked" @bind-value:event="oninput" disabled="@IsDisabled"  />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Vairuota val.</label>
-                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.HoursDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
+            <div class="col-start-1">
+                <label class="block text-md font-medium">Vairuota val.</label>
+                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.HoursDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Kiti darbai</label>
-                <input type="text" class="w-full border rounded px-2 py-1" @bind-value="FormData.OtherWork" @bind-value:event="oninput" disabled="@IsDisabled" />
+            <div class="col-start-2">
+                <label class="block text-md font-medium">Kiti darbai</label>
+                <input type="text" class="w-full border rounded p-2" @bind-value="FormData.OtherWork" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Viso išdirbta</label>
-                <input type="text" class="w-full border rounded px-2 py-1" @bind-value="FormData.TotalWorked" @bind-value:event="oninput" disabled="@IsDisabled" />
+            <div class="col-start-1">
+                <label class="block text-md font-medium">Viso išdirbta</label>
+                <input type="text" class="w-full border rounded p-2" @bind-value="FormData.TotalWorked" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Išmokėta</label>
-                <input type="text" class="w-full border rounded px-2 py-1" @bind-value="FormData.Paid" @bind-value:event="oninput" disabled="@IsDisabled" />
+            <div class="col-start-2">
+                <label class="block text-md font-medium">Išmokėta</label>
+                <input type="text" class="w-full border rounded p-2" @bind-value="FormData.Paid" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-span-2">
-                <label class="block text-sm font-medium">Komentaras</label>
-                <textarea class="w-full border rounded px-2 py-1" rows="3" @bind-value="FormData.Comment" @bind-value:event="oninput" disabled="@IsDisabled"></textarea>
+            <div class="col-span-2 col-start-3 row-span-4 row-start-1 mb-5">
+                <label class="block text-md font-medium">Komentaras</label>
+                <textarea class="w-full h-full border rounded resize-none p-2" @bind-value="FormData.Comment" @bind-value:event="oninput" disabled="@IsDisabled"></textarea>
             </div>
 
-            <div class="col-span-2 flex">
-                <button class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            <div class="col-span-4 flex">
+                <button class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 shadow-md border-indigo-700"
                         @onclick="SaveForm" disabled="@IsDisabled">
                     @if (isSaving)
                     {

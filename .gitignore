@@ -84,3 +84,5 @@ _ReSharper*/
 *.db
 *.sqlite
 *.cache
+
+node_modules/
