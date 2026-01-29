@@ -3,8 +3,14 @@
 
 @inherits LayoutComponentBase
 @inject AppBarTitleService TitleService
+@inject ILogger<MainLayout> Logger
+@inject IJSRuntime JS
 
-<div class="relative h-screen w-screen overflow-hidden">
+<div class="relative h-screen w-screen overflow-hidden select-none"
+     @onpointerdown="OnPointerDown"
+     @onpointerup="OnPointerUp"
+     @ontouchstart="OnTouchStart"
+     @ontouchend="OnTouchEnd">
 
     <!-- Drawer -->
     <aside class="@($"absolute left-0 top-0 bg-slate-200 shadow-lg w-64 h-full transform transition-transform duration-300 ease-in-out {(_drawerOpen ? "translate-x-0" : "-translate-x-full")}")">
@@ -32,9 +38,40 @@
     </div>
 </div>
 
+<script type="text/javascript">
+        window.getHeight = function () {
+        return window.innerHeight
+    };
+
+    window.getWidth = function () {
+        return window.innerWidth;
+    };
+</script>
+
 @code {
     private bool _drawerOpen = false;
     private string appBarTitle = string.Empty;
+
+    private double _startX;
+    private double _startY;
+    private const double SwipeThreshold = 50;
+    private bool _validSwipeArea = false;
+    private double _viewportWidth;
+    private double _viewportHeight;
+
+    public MainLayout()
+    {
+
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _viewportHeight = await JS.InvokeAsync<int>("getHeight");
+            _viewportWidth = await JS.InvokeAsync<int>("getWidth");
+        }
+    }
 
     protected override Task OnInitializedAsync()
     {
@@ -52,6 +89,50 @@
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private void OnPointerDown(PointerEventArgs e)
+    {
+        HandleStart(e.ClientX, e.ClientY);
+    }
+
+    private void OnTouchStart(TouchEventArgs e)
+    {
+        if (e.Touches.Length > 0)
+            HandleStart(e.Touches[0].ClientX, e.Touches[0].ClientY);
+    }
+
+    private void HandleStart(double x, double y)
+    {
+        _startX = x;
+        _startY = y;
+
+        _validSwipeArea = (_startX <= _viewportWidth * 0.3) && (_startY <= _viewportHeight * 0.2);
+        Logger.LogInformation("Swipe start X={X}, Y={Y}, valid={Valid}", _startX, _startY, _validSwipeArea);
+    }
+
+    private void OnPointerUp(PointerEventArgs e)
+    {
+        HandleEnd(e.ClientX);
+    }
+
+    private void OnTouchEnd(TouchEventArgs e)
+    {
+        if (e.ChangedTouches.Length > 0)
+            HandleEnd(e.ChangedTouches[0].ClientX);
+    }
+
+    private void HandleEnd(double endX)
+    {
+        if (!_validSwipeArea) return;
+
+        var distance = endX - _startX;
+
+        if (distance > SwipeThreshold) _drawerOpen = true;
+        else if (distance < -SwipeThreshold) _drawerOpen = false;
+
+        StateHasChanged();
+        _validSwipeArea = false;
     }
 
     public void Dispose()

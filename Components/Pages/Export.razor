@@ -5,7 +5,7 @@
 @inject ILogger<Home> Logger
 
 <div class="flex flex-1">
-    <button class="text-lg font-bold" @onclick="@(async () => await ExportExcelFile())">Exportuoti Excel failą</button>
+    <button class="text-lg font-bold border border-black" @onclick="@(async () => await ExportExcelFile())">Exportuoti Excel failą</button>
 </div>
 
 @code {
