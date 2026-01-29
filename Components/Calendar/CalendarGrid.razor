@@ -1,8 +1,9 @@
 ﻿@namespace WorkJournal.Components.Calendar
 
 @inject ILogger<CalendarGrid> Logger
+@inject DatabaseService DbService
 
-<div class="w-full max-w-xl p-4 rounded-lg shadow-md">
+<div class="w-full max-w-[60%] p-4 rounded-lg shadow-md">
     <!-- Month / Year Navigation -->
     <div class="flex items-center justify-between mb-4 space-x-4">
         <!-- Previous Month -->
@@ -12,7 +13,6 @@
                       class="h-6 w-6" />
         </button>
 
-        <!-- Current Month and Year -->
         <!-- Current Month and Year -->
         <div class="text-2xl font-semibold flex items-center space-x-2">
             <!-- Month Dropdown -->
@@ -97,25 +97,33 @@
         {
             var index = weekIndex;
             var week = Weeks[weekIndex];
-            bool isSelected = SelectedWeek != null && SelectedWeek.Intersect(week.Where(d => d.HasValue)).Any();
 
-            <div class="relative grid grid-cols-8 gap-2 items-center">
+            bool isSelected = SelectedWeek != null && SelectedWeek.Intersect(week.Where(d => d.HasValue)).Any();
+            bool isVacation = VacationWeek != null && VacationWeek.Intersect(week.Where(d => d.HasValue)).Any();
+
+            <div class="relative grid grid-cols-8 gap-2 items-center p-1">
                 <!-- Overlay covering the entire week row -->
                 @if (isSelected)
                 {
-                    <div class="absolute inset-0 bg-indigo-500 opacity-40 z-50 pointer-events-none rounded-lg"></div>
+                    <div class="absolute inset-0 bg-indigo-500/30 opacity-40 z-50 rounded-lg"></div>
+                }
+                else if (isVacation)
+                {
+                    <div class="absolute inset-0 bg-red-500 opacity-30 z-1 rounded-lg"></div>
                 }
 
             <!-- Week select button -->
-            <button class="relative z-60 shadow-md aspect-square w-full flex items-center justify-center rounded-lg border text-sm font-medium
-                   @(isSelected
-                                                                   ? "bg-indigo-500 text-white border-indigo-600"
-                                                                   : "bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200")"
-                        @onclick="() => SelectWeek(index)">
-                    <Heroicon Name="@HeroiconName.ChevronDoubleRight"
-                              Type="HeroiconType.Outline"
-                              class="h-6 w-6" />
-                </button>
+            <button class="relative z-1 shadow-md aspect-square w-full flex items-center justify-center rounded-lg border text-sm font-medium
+                @(isSelected
+                ? "bg-indigo-500 text-white border-indigo-600"
+                : isVacation
+                    ? "bg-red-600 text-white border-red-700"
+                    : "bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200")"
+                        @onclick="() => SelectWeek(index)" >
+                            <Heroicon Name="@HeroiconName.ChevronDoubleRight"
+                                      Type="HeroiconType.Outline"
+                                      class="h-6 w-6" />
+                        </button>
 
                 <!-- Day buttons (render inline inside row) -->
                 @foreach (var day in week)
@@ -133,6 +141,20 @@
             </div>
         }
     </div>
+    @if(SelectedWeek != null && SelectedWeek.Any())
+    {
+        <div class="mt-4 flex items-center gap-2">
+            <input type="checkbox"
+                   id="vacationToggle"
+                   class="w-5 h-5 accent-red-600"
+                   checked="@IsVacationSelected"
+                   @onchange="ToggleVacationWeek" />
+
+            <label for="vacationToggle" class="text-md font-medium text-red-700">
+                Atostogų savaitė
+            </label>
+        </div>
+    }
 </div>
 
 @code {
@@ -141,32 +163,46 @@
     private string[] DayNames = [];
     private List<List<DateTime?>> Weeks = new();
 
-    [Parameter]
-    public List<DateTime?> SelectedWeek { get; set; } = new();
+    [Parameter] public List<DateTime?> SelectedWeek { get; set; } = new();
+    [Parameter] public List<DateTime?> VacationWeek { get; set; } = new();
 
-    [Parameter]
-    public EventCallback<List<DateTime?>> SelectedWeekChanged { get; set; }
+    [Parameter] public EventCallback<List<DateTime?>> SelectedWeekChanged { get; set; }
+    [Parameter] public EventCallback<List<DateTime?>> VacationWeekChanged { get; set; }
 
     private bool _showMonthDropdown = false;
     private bool _showYearDropdown = false;
     private List<int> _years = Enumerable.Range(DateTime.Today.Year - 10, 21).ToList();
+    private bool IsVacationSelected =>
+        VacationWeek != null &&
+        SelectedWeek != null &&
+        VacationWeek.Intersect(SelectedWeek.Where(d => d.HasValue)).Any();
 
     public CalendarGrid()
     {
 
     }
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
         DayNames = lt.DateTimeFormat.AbbreviatedDayNames
-        .Skip(1)
-        .Concat(lt.DateTimeFormat.AbbreviatedDayNames.Take(1))
-        .Select(d => char.ToUpper(d[0]) + d.Substring(1))
-        .ToArray();
+            .Skip(1)
+            .Concat(lt.DateTimeFormat.AbbreviatedDayNames.Take(1))
+            .Select(d => char.ToUpper(d[0]) + d.Substring(1))
+            .ToArray();
 
         GenerateCalendar(CurrentDate);
 
-        return base.OnInitializedAsync();
+        // Instead of loading only first week
+        await LoadAllVacationWeeksAsync();
+
+        // Optionally, select the first week
+        if (Weeks.Count > 0)
+        {
+            SelectedWeek = Weeks[0].Where(d => d.HasValue).ToList();
+            await SelectedWeekChanged.InvokeAsync(SelectedWeek);
+        }
+
+        await base.OnInitializedAsync();
     }
 
     private void GenerateCalendar(DateTime date)
@@ -203,15 +239,13 @@
 
     private async Task SelectWeek(int weekIndex)
     {
-        Logger.LogInformation("WeekIndex: {WeekIndex}, Weeks.Count: {WeeksCount}", weekIndex, Weeks.Count);
-
         if (weekIndex < 0 || weekIndex >= Weeks.Count)
             return;
 
         SelectedWeek = Weeks[weekIndex].Where(d => d.HasValue).ToList();
-
-        // Notify parent
         await SelectedWeekChanged.InvokeAsync(SelectedWeek);
+        // Now checkbox can check if this selected week is a vacation
+        StateHasChanged();
     }
 
     // Month navigation
@@ -225,6 +259,68 @@
     {
         CurrentDate = CurrentDate.AddMonths(1);
         GenerateCalendar(CurrentDate);
+    }
+
+    private async Task ToggleVacationWeek(ChangeEventArgs e)
+    {
+        if (SelectedWeek == null || !SelectedWeek.Any())
+            return;
+
+        var isChecked = (bool)e.Value!;
+        var weekStart = SelectedWeek.First()!.Value;
+
+        // Save to DB
+        await DbService.SaveWeekDataAsync(
+            new WeekFormData
+            {
+                IsVacationWeek = isChecked
+            },
+            weekStart
+        );
+
+        // Update in-memory VacationWeek list
+        if (isChecked)
+        {
+            // Add the current week dates
+            foreach (var day in SelectedWeek)
+            {
+                if (!VacationWeek.Contains(day))
+                    VacationWeek.Add(day);
+            }
+        }
+        else
+        {
+            // Remove the current week dates
+            foreach (var day in SelectedWeek)
+            {
+                VacationWeek.Remove(day);
+            }
+        }
+
+        await VacationWeekChanged.InvokeAsync(VacationWeek);
+        StateHasChanged();
+    }
+
+    private async Task LoadAllVacationWeeksAsync()
+    {
+        var allVacationDays = new List<DateTime?>();
+
+        foreach (var week in Weeks)
+        {
+            var weekStart = week.FirstOrDefault(d => d.HasValue);
+            if (!weekStart.HasValue)
+                continue;
+
+            var weekData = await DbService.LoadWeekDataAsync(weekStart.Value);
+            if (weekData != null && weekData.IsVacationWeek)
+            {
+                allVacationDays.AddRange(week.Where(d => d.HasValue));
+            }
+        }
+
+        VacationWeek = allVacationDays.Distinct().ToList();
+        await VacationWeekChanged.InvokeAsync(VacationWeek);
+        StateHasChanged();
     }
 
     private void ToggleMonthDropdown()

@@ -1,0 +1,28 @@
+﻿@page "/export"
+
+@inject AppBarTitleService TitleService
+@inject DatabaseService DbService
+@inject ILogger<Home> Logger
+
+<div class="flex flex-1">
+    <button class="text-lg font-bold" @onclick="@(async () => await ExportExcelFile())">Exportuoti Excel failą</button>
+</div>
+
+@code {
+    public Export()
+    {
+
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        TitleService.SetTitle("Exportas");
+
+        return base.OnInitializedAsync();
+    }
+
+    public async Task ExportExcelFile()
+    {
+        await DbService.ExportYearToExcelAsync(DateTime.UtcNow.Year);
+    }
+}

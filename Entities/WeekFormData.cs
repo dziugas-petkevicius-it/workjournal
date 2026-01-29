@@ -11,4 +11,5 @@ public class WeekFormData
     public string TotalWorked { get; set; } = "";
     public string Paid { get; set; } = "";
     public string Comment { get; set; } = "";
+    public bool IsVacationWeek { get; set; }
 }

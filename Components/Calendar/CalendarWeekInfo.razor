@@ -3,57 +3,57 @@
 @inject DatabaseService DbService
 @inject ILogger<CalendarWeekInfo> Logger
 
-<div class="flex-1 p-4 rounded-lg shadow-md flex-shrink-0 relative">
+<div class="flex-1 p-4 w-full max-w-[60%] rounded-lg shadow-md flex-shrink-0 relative">
     @*
         <h2 class="text-center text-lg font-semibold mb-4">
             @SelectedWeek.First().ToString("yyyy-MM-dd") – @SelectedWeek.Last().ToString("yyyy-MM-dd")
         </h2>
     *@
     <div class="relative">
-        <div class="grid grid-cols-4 grid-rows-5 gap-6">
-            <div class="col-start-1">
+        <div class="grid grid-cols-4 grid-rows-8 gap-2">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Šeš.val.D</label>
-                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.SaturdayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="number" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.SaturdayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-2">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Sek.val.D</label>
-                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.SundayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="number" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.SundayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-1">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Pravažiuota (Km)</label>
-                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.KilometersDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="number" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.KilometersDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-2">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Dirbta dienų</label>
-                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.DaysWorked" @bind-value:event="oninput" disabled="@IsDisabled"  />
+                <input type="number" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.DaysWorked" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-1">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Vairuota val.</label>
-                <input type="number" class="w-full border rounded p-2" @bind-value="FormData.HoursDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="number" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.HoursDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-2">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Kiti darbai</label>
-                <input type="text" class="w-full border rounded p-2" @bind-value="FormData.OtherWork" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="text" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.OtherWork" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-1">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Viso išdirbta</label>
-                <input type="text" class="w-full border rounded p-2" @bind-value="FormData.TotalWorked" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="text" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.TotalWorked" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-start-2">
+            <div class="col-start-1 col-span-2">
                 <label class="block text-md font-medium">Išmokėta</label>
-                <input type="text" class="w-full border rounded p-2" @bind-value="FormData.Paid" @bind-value:event="oninput" disabled="@IsDisabled" />
+                <input type="text" class="w-full border rounded p-2 shadow-md" @bind-value="FormData.Paid" @bind-value:event="oninput" disabled="@IsDisabled" />
             </div>
 
-            <div class="col-span-2 col-start-3 row-span-4 row-start-1 mb-5">
+            <div class="flex flex-col col-span-2 col-start-3 row-span-full row-start-1">
                 <label class="block text-md font-medium">Komentaras</label>
-                <textarea class="w-full h-full border rounded resize-none p-2" @bind-value="FormData.Comment" @bind-value:event="oninput" disabled="@IsDisabled"></textarea>
+                <textarea class="w-full flex-1 border rounded resize-none p-2 shadow-md" @bind-value="FormData.Comment" @bind-value:event="oninput" disabled="@IsDisabled"></textarea>
             </div>
 
             <div class="col-span-4 flex">
@@ -88,6 +88,8 @@
 @code {
     [Parameter]
     public List<DateTime> SelectedWeek { get; set; } = new();
+    [Parameter]
+    public bool IsVacation { get; set; }
 
     private WeekFormData FormData { get; set; } = new WeekFormData();
     private bool isSaving = false;
@@ -96,7 +98,7 @@
 
     public CalendarWeekInfo()
     {
-        
+
     }
 
     protected override async Task OnParametersSetAsync()
@@ -132,6 +134,7 @@
                 FormData.TotalWorked = loadedData.TotalWorked;
                 FormData.Paid = loadedData.Paid;
                 FormData.Comment = loadedData.Comment;
+                FormData.IsVacationWeek = loadedData.IsVacationWeek;
             }
             else
             {
@@ -144,6 +147,7 @@
                 FormData.TotalWorked = "";
                 FormData.Paid = "";
                 FormData.Comment = "";
+                FormData.IsVacationWeek = false;
             }
 
             Logger.LogInformation("Loaded week {WeekStart}: {@FormData}", weekStart, FormData);
