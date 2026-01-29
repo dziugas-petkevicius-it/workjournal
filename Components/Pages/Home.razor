@@ -1,29 +1,49 @@
 ﻿@page "/"
 
 @inject AppBarTitleService TitleService
+@inject DatabaseService DbService
 @inject ILogger<Home> Logger
+@inject IFolderPicker FolderPicker
 
 <div class="flex p-4 bg-slate-100 h-full gap-2 select-none">
-    <CalendarGrid @bind-SelectedWeek="SelectedWeek"
-                  @bind-VacationWeek="VacationWeek" />
-
-    @if (SelectedWeek != null && SelectedWeek.Count > 0 && !IsVacationWeek)
+    @if (string.IsNullOrEmpty(DbService.ExportFolderUri))
     {
-        <CalendarWeekInfo SelectedWeek="@(SelectedWeek.Where(d => d.HasValue).Select(d => d!.Value).ToList())" />
+    #if ANDROID
+        <div class="flex-1 p-4 rounded-lg shadow-md flex flex-col items-center justify-center">
+                <span class="text-2xl mb-4">Pasirinkite aplanką duomenų bazei</span>
+                <button class="px-4 py-2 bg-blue-600 text-white rounded" @onclick="PickFolder">Pasirinkti aplanką</button>
+        </div>
+    #endif
     }
-    else if (IsVacationWeek)
+    else if (!DbService.IsInitialized)
     {
-        <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center bg-red-100">
-            <span class="text-2xl text-red-700 font-semibold">
-                Atostogų savaitė
-            </span>
+        <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center">
+            <span class="text-2xl">Kuriama duomenų bazė...</span>
         </div>
     }
     else
     {
-        <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center">
-            <span class="text-4xl">Pasirinkite darbo savaitę</span>
-        </div>
+        <CalendarGrid @bind-SelectedWeek="SelectedWeek"
+                      @bind-VacationWeek="VacationWeek" />
+
+        @if (SelectedWeek != null && SelectedWeek.Count > 0 && !IsVacationWeek)
+        {
+            <CalendarWeekInfo SelectedWeek="@(SelectedWeek.Where(d => d.HasValue).Select(d => d!.Value).ToList())" />
+        }
+        else if (IsVacationWeek)
+        {
+            <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center bg-red-100">
+                <span class="text-2xl text-red-700 font-semibold">
+                    Atostogų savaitė
+                </span>
+            </div>
+        }
+        else
+        {
+            <div class="flex-1 p-4 rounded-lg shadow-md flex items-center justify-center">
+                <span class="text-4xl">Pasirinkite darbo savaitę</span>
+            </div>
+        }
     }
 </div>
 
@@ -36,15 +56,71 @@
         SelectedWeek != null &&
         VacationWeek.Intersect(SelectedWeek).Any();
 
-    public Home()
-    {
-        
-    }
-
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
         TitleService.SetTitle("Kalendorius");
 
-        return base.OnInitializedAsync();
+#if ANDROID
+    try
+    {
+        string? folderUri = Preferences.Get("DbFolderUri", null);
+        if (!string.IsNullOrEmpty(folderUri))
+        {
+            // Use previously saved folder
+            await DbService.SetExportFolderAsync(folderUri);
+            await DbService.InitializeAsync();
+        }
+        else
+        {
+            // User must pick a folder
+            // Do NOT initialize yet; UI will prompt
+        }
     }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Unable to create db service");
+    }
+#else
+        await DbService.InitializeAsync();
+#endif
+        await base.OnInitializedAsync();
+    }
+
+#if ANDROID
+    private async Task PickFolder()
+    {
+        string? folderUri = null;
+
+        try
+        {
+            folderUri = await FolderPicker.PickFolderAsync(); // This triggers ACTION_OPEN_DOCUMENT_TREE
+
+            Logger.LogError("Picked URI: {uri}", folderUri);
+
+            if (!string.IsNullOrEmpty(folderUri))
+            {
+                // Take persistable permissions right here
+                var context = Android.App.Application.Context!;
+                var uri = Android.Net.Uri.Parse(folderUri);
+
+                var flags = Android.Content.ActivityFlags.GrantReadUriPermission | Android.Content.ActivityFlags.GrantWriteUriPermission;
+                context.ContentResolver.TakePersistableUriPermission(uri, flags);
+
+                // Save URI for later use
+                Preferences.Set("DbFolderUri", folderUri);
+
+                Logger.LogError("Setting URI: {uri}", folderUri);
+                await DbService.SetExportFolderAsync(folderUri);
+                await DbService.InitializeAsync();
+
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Export folder URI: {uri}", folderUri);
+            Logger.LogError(ex, "Folder picking failed.");
+        }
+    }
+#endif
 }

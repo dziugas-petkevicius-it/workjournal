@@ -1,35 +1,39 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using ClosedXML.Excel;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+using System.Globalization;
 using WorkJournal.Entities;
-using ClosedXML.Excel;
 
 namespace WorkJournal.Services;
 
 public class DatabaseService
 {
+    private ILogger<DatabaseService> logger;
+
     private readonly string _dbPath;
+    public string? ExportFolderUri { get; private set; }
 
-    public DatabaseService()
-    {
-        _dbPath = GetDatabasePath();
-        InitializeDatabase();
-    }
+    public bool IsInitialized { get; private set; }
 
-    private string GetDatabasePath()
+    public DatabaseService(ILogger<DatabaseService> logger)
     {
-#if ANDROID || IOS
-        // Mobile platforms MUST use sandboxed storage
-        return Path.Combine(FileSystem.AppDataDirectory, "workcalendar.db");
+        this.logger = logger;
+
+#if ANDROID
+        _dbPath = Path.Combine(FileSystem.AppDataDirectory, "workcalendar.db");
 #else
-    // Desktop platforms → next to executable
-    var exePath = AppContext.BaseDirectory;
-    return Path.Combine(exePath, "workcalendar.db");
+        _dbPath = Path.Combine(AppContext.BaseDirectory, "workcalendar.db");
 #endif
     }
 
-    private void InitializeDatabase()
+    // Call this after constructor to initialize DB asynchronously
+    public async Task InitializeAsync()
     {
+        if (IsInitialized)
+            return;
+
         using var connection = new SqliteConnection($"Data Source={_dbPath}");
-        connection.Open();
+        await connection.OpenAsync();
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -47,9 +51,12 @@ public class DatabaseService
             Comment TEXT,
             IsVacationWeek INTEGER NOT NULL
         )";
-        command.ExecuteNonQuery();
+        await command.ExecuteNonQueryAsync();
+
+        IsInitialized = true;
     }
 
+    // Existing async methods remain the same
     public async Task SaveWeekDataAsync(WeekFormData form, DateTime weekStart)
     {
         using var connection = new SqliteConnection($"Data Source={_dbPath}");
@@ -106,7 +113,6 @@ public class DatabaseService
         command.Parameters.AddWithValue("$weekStart", weekStart.ToString("yyyy-MM-dd"));
 
         using var reader = await command.ExecuteReaderAsync();
-
         if (await reader.ReadAsync())
         {
             return new WeekFormData
@@ -127,72 +133,208 @@ public class DatabaseService
         return null;
     }
 
+#if ANDROID
+    public Task SetExportFolderAsync(string folderUri)
+    {
+        ExportFolderUri = folderUri;
+        return Task.CompletedTask;
+    }
+#endif
+
     public async Task<string> ExportYearToExcelAsync(int year)
     {
         using var connection = new SqliteConnection($"Data Source={_dbPath}");
         await connection.OpenAsync();
 
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-        SELECT WeekStart, SaturdayHours, SundayHours, KilometersDriven, DaysWorked,
-               HoursDriven, OtherWork, TotalWorked, Paid, Comment, IsVacationWeek
-        FROM WeekData
-        WHERE strftime('%Y', WeekStart) = $year
-        ORDER BY WeekStart";
-        command.Parameters.AddWithValue("$year", year.ToString());
+        // Load all week data for the year into memory
+        var weekData = new Dictionary<DateTime, (bool IsVacation, object?[] Data)>();
 
-        using var reader = await command.ExecuteReaderAsync();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+            SELECT WeekStart, SaturdayHours, SundayHours, KilometersDriven, DaysWorked,
+                   HoursDriven, OtherWork, TotalWorked, Paid, Comment, IsVacationWeek
+            FROM WeekData
+            WHERE strftime('%Y', WeekStart) = $year";
+            command.Parameters.AddWithValue("$year", year.ToString());
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var weekStart = DateTime.Parse(reader.GetString(0));
+                bool isVacation = reader.GetInt32(10) == 1;
+
+                var data = new object?[]
+                {
+                reader.GetInt32(1), // SaturdayHours
+                reader.GetInt32(2), // SundayHours
+                reader.GetInt32(3), // Km
+                reader.GetInt32(4), // DaysWorked
+                reader.GetInt32(5), // HoursDriven
+                reader.IsDBNull(6) ? "" : reader.GetString(6),
+                reader.IsDBNull(7) ? "" : reader.GetString(7),
+                reader.IsDBNull(8) ? "" : reader.GetString(8),
+                reader.IsDBNull(9) ? "" : reader.GetString(9)
+                };
+
+                weekData[weekStart] = (isVacation, data);
+            }
+        }
 
         using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add($"WorkJournal_{year}");
+        var ws = workbook.Worksheets.Add($"Kalendorius {year}");
 
         // Headers
-        string[] headers = { "WeekStart", "SaturdayHours", "SundayHours", "KilometersDriven",
-                         "DaysWorked", "HoursDriven", "OtherWork", "TotalWorked",
-                         "Paid", "Comment", "IsVacationWeek" };
+        string[] headers =
+        {
+        "Mėnuo", "Pn", "An", "Tr", "Kt", "Pe", "Št", "Sk",
+        "Šeš.val.", "Sek.val.", "Pravažiuota (Km)", "Dirbta dienų",
+        "Vairuota val.", "Kiti darbai", "Viso išdirbta", "Išmokėta", "Komentaras"
+    };
 
         for (int i = 0; i < headers.Length; i++)
         {
-            worksheet.Cell(1, i + 1).Value = headers[i];
-            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-            worksheet.Cell(1, i + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            ws.Cell(1, i + 1).Value = headers[i];
+            ws.Cell(1, i + 1).Style.Font.Bold = true;
+            ws.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            ws.Cell(1, i + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
         int row = 2;
-        while (await reader.ReadAsync())
+        var culture = new CultureInfo("lt-LT");
+
+        for (int month = 1; month <= 12; month++)
         {
-            bool isVacation = reader.GetInt32(10) == 1;
+            var firstDay = new DateTime(year, month, 1);
+            int daysInMonth = DateTime.DaysInMonth(year, month);
 
-            worksheet.Cell(row, 1).Value = reader.GetString(0); // WeekStart
-            worksheet.Cell(row, 2).Value = reader.GetInt32(1);   // SaturdayHours
-            worksheet.Cell(row, 3).Value = reader.GetInt32(2);   // SundayHours
-            worksheet.Cell(row, 4).Value = reader.GetInt32(3);   // KilometersDriven
-            worksheet.Cell(row, 5).Value = reader.GetInt32(4);   // DaysWorked
-            worksheet.Cell(row, 6).Value = reader.GetInt32(5);   // HoursDriven
-            worksheet.Cell(row, 7).Value = reader.IsDBNull(6) ? "" : reader.GetString(6); // OtherWork
-            worksheet.Cell(row, 8).Value = reader.IsDBNull(7) ? "" : reader.GetString(7); // TotalWorked
-            worksheet.Cell(row, 9).Value = reader.IsDBNull(8) ? "" : reader.GetString(8); // Paid
-            worksheet.Cell(row, 10).Value = reader.IsDBNull(9) ? "" : reader.GetString(9); // Comment
-            worksheet.Cell(row, 11).Value = isVacation ? "Yes" : "No"; // IsVacationWeek
+            // Month name (vertical)
+            int monthStartRow = row;
+            ws.Cell(row, 1).Value = culture.DateTimeFormat.MonthNames[month - 1];
+            ws.Cell(row, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            ws.Cell(row, 1).Style.Font.Bold = true;
 
-            if (isVacation)
+            // Generate calendar weeks
+            var weeks = new List<List<DateTime?>>();
+            var week = new List<DateTime?>();
+
+            int leading = ((int)firstDay.DayOfWeek + 6) % 7;
+            for (int i = 0; i < leading; i++) week.Add(null);
+
+            for (int d = 1; d <= daysInMonth; d++)
             {
-                for (int col = 1; col <= headers.Length; col++)
-                    worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.LightCoral;
+                week.Add(new DateTime(year, month, d));
+                if (week.Count == 7)
+                {
+                    weeks.Add(week);
+                    week = new List<DateTime?>();
+                }
             }
 
-            row++;
+            if (week.Count > 0)
+            {
+                while (week.Count < 7) week.Add(null);
+                weeks.Add(week);
+            }
+
+            foreach (var w in weeks)
+            {
+                DateTime? weekStart = w.FirstOrDefault(d => d.HasValue);
+                bool isVacation = weekStart.HasValue && weekData.ContainsKey(weekStart.Value) && weekData[weekStart.Value].IsVacation;
+
+                // Days
+                for (int d = 0; d < 7; d++)
+                    ws.Cell(row, d + 2).Value = w[d]?.Day ?? (XLCellValue)"";
+
+                // Totals
+                if (weekStart.HasValue && weekData.TryGetValue(weekStart.Value, out var data))
+                {
+                    for (int i = 0; i < data.Data.Length; i++)
+                    {
+                        var value = data.Data[i];
+
+                        ws.Cell(row, i + 9).Value = value switch
+                        {
+                            null => "",
+                            int intValue => intValue,
+                            double doubleValue => doubleValue,
+                            string strValue => strValue,
+                            bool boolValue => boolValue,
+                            _ => value.ToString() // fallback
+                        };
+                    }
+                }
+
+                // Vacation coloring
+                if (isVacation)
+                {
+                    for (int c = 1; c <= headers.Length; c++)
+                        ws.Cell(row, c).Style.Fill.BackgroundColor = XLColor.LightCoral;
+                }
+
+                row++;
+            }
+
+            ws.Range(monthStartRow, 1, row - 1, 1).Merge();
         }
 
-        worksheet.Columns().AdjustToContents();
+        ws.Columns().AdjustToContents();
 
-        // Build path in the same directory as the DB
+#if ANDROID
+        if (string.IsNullOrWhiteSpace(ExportFolderUri))
+            throw new InvalidOperationException("Export folder not selected");
+
+        var context = Android.App.Application.Context ??
+                      throw new InvalidOperationException("Android context unavailable");
+
+        // Parse the tree URI returned by FolderPicker
+        var treeUriString = ExportFolderUri!.Replace("%3A", ":");
+        var treeUri = Android.Net.Uri.Parse(treeUriString);
+
+        logger.LogError("Will try to save to tree URI: {uri}", treeUri);
+
+        if (treeUri == null)
+            throw new InvalidOperationException("Invalid folder URI");
+
+        if (context.ContentResolver == null)
+            throw new InvalidOperationException("Content resolver is null");
+
+        // Extract the tree document ID
+        var treeDocId = Android.Provider.DocumentsContract.GetTreeDocumentId(treeUri);
+
+        // Build a proper folder URI under the tree
+        var folderUri = Android.Provider.DocumentsContract.BuildDocumentUriUsingTree(treeUri, treeDocId);
+
+        if (folderUri == null)
+            throw new InvalidOperationException("Folder URI is null");
+
+        var fileName = $"WorkJournal_{year}.xlsx";
+        var mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+        // Now create the document in that folder
+        var docUri = Android.Provider.DocumentsContract.CreateDocument(
+            context.ContentResolver,
+            folderUri,
+            mimeType,
+            fileName
+        );
+
+        if (docUri == null)
+            throw new InvalidOperationException("Failed to create Excel document");
+
+        using var stream = context.ContentResolver.OpenOutputStream(docUri)
+            ?? throw new InvalidOperationException("Failed to open output stream");
+
+        // Save workbook to the stream
+        workbook.SaveAs(stream);
+
+        return fileName;
+#else
         var folder = Path.GetDirectoryName(_dbPath)!;
         var filePath = Path.Combine(folder, $"WorkJournal_{year}.xlsx");
 
         workbook.SaveAs(filePath);
-
-        return filePath; // return path to the saved Excel file
+        return filePath;
+#endif
     }
 }

@@ -1,4 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+#if ANDROID
+using WorkJournal.Interface;
+using WorkJournal.Platforms.Android;
+#endif
 using WorkJournal.Services;
 
 namespace WorkJournal
@@ -20,6 +24,12 @@ namespace WorkJournal
 #if DEBUG
     		builder.Services.AddBlazorWebViewDeveloperTools();
     		builder.Logging.AddDebug();
+#endif
+
+            builder.Services.AddLogging();
+
+#if ANDROID
+            builder.Services.AddSingleton<IFolderPicker, FolderPicker>();
 #endif
 
             builder.Services.AddSingleton<DatabaseService>();

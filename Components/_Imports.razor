@@ -12,7 +12,11 @@
 @using WorkJournal.Components.Layout
 @using WorkJournal.Components.Calendar
 @using WorkJournal.Services
+@using WorkJournal.Interface
 @using WorkJournal.Entities
 @using Blazor.Heroicons
 @using Blazor.Heroicons.Solid
 @using Blazor.Heroicons.Outline
+#if ANDROID
+using Android.Content
+#endif
