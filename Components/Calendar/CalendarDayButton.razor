@@ -1,0 +1,12 @@
+﻿@namespace WorkJournal.Components.Calendar
+
+<button class="@($"p-6 relative aspect-square w-full flex items-center justify-center rounded-lg border text-md font-medium transition-colors duration-200 {(IsToday
+            ? "bg-indigo-500 text-white border-indigo-600 hover:bg-indigo-600"
+            : "bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200")}")">
+    @Day
+</button>
+
+@code {
+    [Parameter] public int Day { get; set; }
+    [Parameter] public bool IsToday { get; set; }
+}

@@ -1,0 +1,193 @@
+﻿@namespace WorkJournal.Components.Calendar
+
+@inject DatabaseService DbService
+@inject ILogger<CalendarWeekInfo> Logger
+
+<div class="flex-1 p-4 rounded-lg shadow-md flex-shrink-0 relative">
+    @*
+        <h2 class="text-center text-lg font-semibold mb-4">
+            @SelectedWeek.First().ToString("yyyy-MM-dd") – @SelectedWeek.Last().ToString("yyyy-MM-dd")
+        </h2>
+    *@
+    <div class="relative">
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-medium">Šeš.val.D</label>
+                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.SaturdayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Sek.val.D</label>
+                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.SundayHours" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Pravažiuota (Km)</label>
+                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.KilometersDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Dirbta dienų</label>
+                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.DaysWorked" @bind-value:event="oninput" disabled="@IsDisabled"  />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Vairuota val.</label>
+                <input type="number" class="w-full border rounded px-2 py-1" @bind-value="FormData.HoursDriven" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Kiti darbai</label>
+                <input type="text" class="w-full border rounded px-2 py-1" @bind-value="FormData.OtherWork" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Viso išdirbta</label>
+                <input type="text" class="w-full border rounded px-2 py-1" @bind-value="FormData.TotalWorked" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Išmokėta</label>
+                <input type="text" class="w-full border rounded px-2 py-1" @bind-value="FormData.Paid" @bind-value:event="oninput" disabled="@IsDisabled" />
+            </div>
+
+            <div class="col-span-2">
+                <label class="block text-sm font-medium">Komentaras</label>
+                <textarea class="w-full border rounded px-2 py-1" rows="3" @bind-value="FormData.Comment" @bind-value:event="oninput" disabled="@IsDisabled"></textarea>
+            </div>
+
+            <div class="col-span-2 flex">
+                <button class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                        @onclick="SaveForm" disabled="@IsDisabled">
+                    @if (isSaving)
+                    {
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Išsaugoti</span>
+                    }
+                </button>
+            </div>
+        </div>
+
+        @if (isLoading || isSaving)
+        {
+            <div class="absolute top-0 left-0 w-full h-full bg-slate-100/80 bg-opacity-30 flex items-center justify-center z-50 pointer-events-none">
+                <div class="flex flex-col items-center gap-2">
+                    <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div class="text-lg font-semibold text-indigo-600">
+                        @(isLoading ? "Kraunama..." : "Išsaugoma...")
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<DateTime> SelectedWeek { get; set; } = new();
+
+    private WeekFormData FormData { get; set; } = new WeekFormData();
+    private bool isSaving = false;
+    private bool isLoading = false;
+    private bool IsDisabled => isSaving || isLoading;
+
+    public CalendarWeekInfo()
+    {
+        
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedWeek?.Count > 0)
+        {
+            await LoadFormDataAsync();
+        }
+
+        Logger.LogInformation($"Init IsLoading: {isLoading}");
+        Logger.LogInformation($"Init IsSaving: {isSaving}");
+    }
+
+    private async Task LoadFormDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var weekStart = SelectedWeek.First();
+            await Task.Delay(1000);
+            var loadedData = await DbService.LoadWeekDataAsync(weekStart);
+
+            if (loadedData != null)
+            {
+                FormData.SaturdayHours = loadedData.SaturdayHours;
+                FormData.SundayHours = loadedData.SundayHours;
+                FormData.KilometersDriven = loadedData.KilometersDriven;
+                FormData.DaysWorked = loadedData.DaysWorked;
+                FormData.HoursDriven = loadedData.HoursDriven;
+                FormData.OtherWork = loadedData.OtherWork;
+                FormData.TotalWorked = loadedData.TotalWorked;
+                FormData.Paid = loadedData.Paid;
+                FormData.Comment = loadedData.Comment;
+            }
+            else
+            {
+                FormData.SaturdayHours = 0;
+                FormData.SundayHours = 0;
+                FormData.KilometersDriven = 0;
+                FormData.DaysWorked = 0;
+                FormData.HoursDriven = 0;
+                FormData.OtherWork = "";
+                FormData.TotalWorked = "";
+                FormData.Paid = "";
+                FormData.Comment = "";
+            }
+
+            Logger.LogInformation("Loaded week {WeekStart}: {@FormData}", weekStart, FormData);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading week {WeekStart}", SelectedWeek.FirstOrDefault());
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+
+        Logger.LogInformation($"IsLoading: {isLoading}");
+        Logger.LogInformation($"IsSaving: {isSaving}");
+    }
+
+    private async Task SaveForm()
+    {
+        if (SelectedWeek?.Count > 0)
+        {
+            try
+            {
+                isSaving = true;
+                StateHasChanged();
+
+                var weekStart = SelectedWeek.First();
+                await Task.Delay(1000);
+                await DbService.SaveWeekDataAsync(FormData, weekStart);
+
+                Logger.LogInformation("Saved week {WeekStart}: {@FormData}", weekStart, FormData);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error saving week {WeekStart}", SelectedWeek.FirstOrDefault());
+            }
+            finally
+            {
+                isSaving = false;
+                StateHasChanged();
+            }
+        }
+
+        Logger.LogInformation($"IsSaving: {isSaving}");
+    }
+}

@@ -1,0 +1,205 @@
+﻿@namespace WorkJournal.Components.Calendar
+
+@inject ILogger<CalendarGrid> Logger
+
+<div class="w-full max-w-lg p-4 rounded-lg shadow-md">
+    <!-- Month / Year Navigation -->
+    <div class="flex items-center justify-between mb-4 space-x-4">
+        <!-- Previous Month -->
+        <button @onclick="PrevMonth" class="p-1 hover:bg-gray-300 rounded">
+            <Heroicon Name="@HeroiconName.ChevronLeft"
+                      Type="HeroiconType.Outline"
+                      class="h-6 w-6" />
+        </button>
+
+        <!-- Current Month and Year -->
+        <div class="text-2xl font-semibold flex items-center space-x-2">
+            <span>@(char.ToUpper(CurrentDate.ToString("MMMM", lt)[0]) + CurrentDate.ToString("MMMM", lt).Substring(1))</span>
+            <div class="relative">
+                <button @onclick="ToggleYearDropdown"
+                        class="underline hover:text-gray-700">
+                    @CurrentDate.Year
+                </button>
+
+                @if (_showYearDropdown && _years != null)
+                {
+                    <ul class="absolute left-0 mt-1 w-24 bg-white text-black border rounded shadow-lg z-50 max-h-60 overflow-auto">
+                        @foreach (var year in _years)
+                        {
+                            <li>
+                                <button class="w-full text-left px-2 py-1 hover:bg-gray-200"
+                                        @onclick="() => SelectYear(year)">
+                                    @year
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <!-- Next Month -->
+        <button @onclick="NextMonth" class="p-1 hover:bg-gray-300 rounded">
+            <Heroicon Name="@HeroiconName.ChevronRight"
+                      Type="HeroiconType.Outline"
+                      class="h-6 w-6" />
+        </button>
+    </div>
+
+    <!-- Day Names -->
+    <div class="grid grid-cols-8 font-bold mb-2 text-lg">
+        <div></div> <!-- Week select column -->
+        @foreach (var dayName in DayNames)
+        {
+            <div class="truncate text-center">@dayName</div>
+        }
+    </div>
+
+    <!-- Days -->
+    <div class="space-y-2">
+        @for (int weekIndex = 0; weekIndex < Weeks.Count; weekIndex++)
+        {
+            var index = weekIndex;
+            var week = Weeks[weekIndex];
+            bool isSelected = SelectedWeek != null && SelectedWeek.Intersect(week.Where(d => d.HasValue)).Any();
+
+            <div class="relative grid grid-cols-8 gap-2 items-center">
+                <!-- Overlay covering the entire week row -->
+                @if (isSelected)
+                {
+                    <div class="absolute inset-0 bg-indigo-500 opacity-40 z-50 pointer-events-none rounded-lg"></div>
+                }
+
+            <!-- Week select button -->
+            <button class="relative z-60 aspect-square w-full flex items-center justify-center rounded-lg border text-sm font-medium
+                   @(isSelected
+                                                                   ? "bg-indigo-500 text-white border-indigo-600"
+                                                                   : "bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200")"
+                        @onclick="() => SelectWeek(index)">
+                    <Heroicon Name="@HeroiconName.ChevronDoubleRight"
+                              Type="HeroiconType.Outline"
+                              class="h-6 w-6" />
+                </button>
+
+                <!-- Day buttons (render inline inside row) -->
+                @foreach (var day in week)
+                {
+                    if (day.HasValue)
+                    {
+                        var isToday = day.Value.Date == DateTime.Today;
+                        <CalendarDayButton Day="@day.Value.Day" IsToday="@isToday" />
+                    }
+                    else
+                    {
+                        <div class="aspect-square w-full"></div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private CultureInfo lt = new CultureInfo("lt-LT");
+    private DateTime CurrentDate = DateTime.Today;
+    private string[] DayNames = [];
+    private List<List<DateTime?>> Weeks = new();
+
+    [Parameter]
+    public List<DateTime?> SelectedWeek { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<DateTime?>> SelectedWeekChanged { get; set; }
+
+    private bool _showYearDropdown = false;
+    private List<int> _years = Enumerable.Range(DateTime.Today.Year - 10, 21).ToList();
+
+    public CalendarGrid()
+    {
+
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        DayNames = lt.DateTimeFormat.AbbreviatedDayNames
+        .Skip(1)
+        .Concat(lt.DateTimeFormat.AbbreviatedDayNames.Take(1))
+        .Select(d => char.ToUpper(d[0]) + d.Substring(1))
+        .ToArray();
+
+        GenerateCalendar(CurrentDate);
+
+        return base.OnInitializedAsync();
+    }
+
+    private void GenerateCalendar(DateTime date)
+    {
+        Weeks.Clear();
+
+        var firstDayOfMonth = new DateTime(date.Year, date.Month, 1);
+        int leadingEmptyCells = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
+        int daysInMonth = DateTime.DaysInMonth(date.Year, date.Month);
+
+        var currentWeek = new List<DateTime?>();
+
+        for (int i = 0; i < leadingEmptyCells; i++)
+            currentWeek.Add(null);
+
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            currentWeek.Add(new DateTime(date.Year, date.Month, day));
+
+            if (currentWeek.Count == 7)
+            {
+                Weeks.Add(currentWeek);
+                currentWeek = new List<DateTime?>();
+            }
+        }
+
+        if (currentWeek.Count > 0)
+        {
+            while (currentWeek.Count < 7)
+                currentWeek.Add(null);
+            Weeks.Add(currentWeek);
+        }
+    }
+
+    private async Task SelectWeek(int weekIndex)
+    {
+        Logger.LogInformation("WeekIndex: {WeekIndex}, Weeks.Count: {WeeksCount}", weekIndex, Weeks.Count);
+
+        if (weekIndex < 0 || weekIndex >= Weeks.Count)
+            return;
+
+        SelectedWeek = Weeks[weekIndex].Where(d => d.HasValue).ToList();
+
+        // Notify parent
+        await SelectedWeekChanged.InvokeAsync(SelectedWeek);
+    }
+
+    // Month navigation
+    private void PrevMonth()
+    {
+        CurrentDate = CurrentDate.AddMonths(-1);
+        GenerateCalendar(CurrentDate);
+    }
+
+    private void NextMonth()
+    {
+        CurrentDate = CurrentDate.AddMonths(1);
+        GenerateCalendar(CurrentDate);
+    }
+
+    // Year dropdown
+    private void ToggleYearDropdown()
+    {
+        _showYearDropdown = !_showYearDropdown;
+    }
+
+    private void SelectYear(int year)
+    {
+        CurrentDate = new DateTime(year, CurrentDate.Month, 1);
+        _showYearDropdown = false;
+        GenerateCalendar(CurrentDate);
+    }
+}

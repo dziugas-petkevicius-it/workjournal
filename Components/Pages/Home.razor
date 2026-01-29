@@ -1,0 +1,35 @@
+﻿@page "/"
+
+@inject AppBarTitleService TitleService
+@inject ILogger<Home> Logger
+
+<div class="flex p-4 bg-slate-100 h-full gap-2">
+    <CalendarGrid @bind-SelectedWeek="SelectedWeek" />
+
+    @if (SelectedWeek != null && SelectedWeek.Count > 0)
+    {
+        <CalendarWeekInfo SelectedWeek="@(SelectedWeek.Where(d => d.HasValue).Select(d => d!.Value).ToList())" />
+    }
+    else
+    {
+        <div class="flex-1 p-4 rounded-lg shadow-md">
+            <h1>Pasirinkite savaite</h1>
+        </div>
+    }
+</div>
+
+@code {
+    public List<DateTime?> SelectedWeek { get; set; } = new();
+
+    public Home()
+    {
+        
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        TitleService.SetTitle("Kalendorius");
+
+        return base.OnInitializedAsync();
+    }
+}
