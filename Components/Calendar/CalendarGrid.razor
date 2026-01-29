@@ -2,7 +2,7 @@
 
 @inject ILogger<CalendarGrid> Logger
 
-<div class="w-full max-w-lg p-4 rounded-lg shadow-md">
+<div class="w-full max-w-xl p-4 rounded-lg shadow-md">
     <!-- Month / Year Navigation -->
     <div class="flex items-center justify-between mb-4 space-x-4">
         <!-- Previous Month -->
@@ -13,21 +13,57 @@
         </button>
 
         <!-- Current Month and Year -->
+        <!-- Current Month and Year -->
         <div class="text-2xl font-semibold flex items-center space-x-2">
-            <span>@(char.ToUpper(CurrentDate.ToString("MMMM", lt)[0]) + CurrentDate.ToString("MMMM", lt).Substring(1))</span>
+            <!-- Month Dropdown -->
+            <div class="relative">
+                <button @onclick="ToggleMonthDropdown"
+                        class="flex px-3 py-1 items-center rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition space-x-1">
+                    <Heroicon Name="@(_showMonthDropdown? HeroiconName.ChevronUp: HeroiconName.ChevronDown)"
+                              Type="HeroiconType.Outline"
+                              class="h-6 w-6" />
+                    <span>@(char.ToUpper(CurrentDate.ToString("MMMM", lt)[0]) + CurrentDate.ToString("MMMM", lt).Substring(1))</span>
+                </button>
+
+                @if (_showMonthDropdown)
+                {
+                    <ul class="absolute left-0 mt-2 w-36 bg-white border border-gray-200 rounded-md shadow-lg z-999 max-h-60 overflow-auto py-1">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            var index = m;
+                            var monthName = new DateTime(CurrentDate.Year, m, 1).ToString("MMMM", lt);
+                            var capitalizedMonth = char.ToUpper(monthName[0]) + monthName.Substring(1);
+
+                            <li>
+                                <button class="w-full text-left px-4 py-2 rounded-md hover:bg-blue-100 hover:text-blue-800 transition
+                                               @(index == CurrentDate.Month ? "text-red-500 font-semibold" : "text-black")"
+                                        @onclick="() => SelectMonth(index)">
+                                    @capitalizedMonth
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <!-- Year Dropdown -->
             <div class="relative">
                 <button @onclick="ToggleYearDropdown"
-                        class="underline hover:text-gray-700">
-                    @CurrentDate.Year
+                        class="flex px-3 py-1 items-center rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition space-x-1">
+                    <span>@CurrentDate.Year</span>
+                    <Heroicon Name="@(_showYearDropdown? HeroiconName.ChevronUp: HeroiconName.ChevronDown)"
+                              Type="HeroiconType.Outline"
+                              class="h-6 w-6" />
                 </button>
 
                 @if (_showYearDropdown && _years != null)
                 {
-                    <ul class="absolute left-0 mt-1 w-24 bg-white text-black border rounded shadow-lg z-50 max-h-60 overflow-auto">
+                    <ul class="absolute left-0 mt-2 w-28 bg-white border border-gray-200 rounded-md shadow-lg z-999 max-h-60 overflow-auto py-1">
                         @foreach (var year in _years)
                         {
                             <li>
-                                <button class="w-full text-left px-2 py-1 hover:bg-gray-200"
+                                <button class="w-full text-left px-4 py-2 rounded-md hover:bg-blue-100 hover:text-blue-800 transition
+                                               @(year == CurrentDate.Year ? "text-red-500 font-semibold" : "text-black")"
                                         @onclick="() => SelectYear(year)">
                                     @year
                                 </button>
@@ -71,7 +107,7 @@
                 }
 
             <!-- Week select button -->
-            <button class="relative z-60 aspect-square w-full flex items-center justify-center rounded-lg border text-sm font-medium
+            <button class="relative z-60 shadow-md aspect-square w-full flex items-center justify-center rounded-lg border text-sm font-medium
                    @(isSelected
                                                                    ? "bg-indigo-500 text-white border-indigo-600"
                                                                    : "bg-slate-100 text-slate-900 border-slate-300 hover:bg-slate-200")"
@@ -111,6 +147,7 @@
     [Parameter]
     public EventCallback<List<DateTime?>> SelectedWeekChanged { get; set; }
 
+    private bool _showMonthDropdown = false;
     private bool _showYearDropdown = false;
     private List<int> _years = Enumerable.Range(DateTime.Today.Year - 10, 21).ToList();
 
@@ -190,15 +227,35 @@
         GenerateCalendar(CurrentDate);
     }
 
+    private void ToggleMonthDropdown()
+    {
+        _showMonthDropdown = !_showMonthDropdown;
+    }
+
     // Year dropdown
     private void ToggleYearDropdown()
     {
         _showYearDropdown = !_showYearDropdown;
     }
 
+    private void SelectMonth(int month)
+    {
+        // Clamp the day to the max day of the new month
+        int daysInNewMonth = DateTime.DaysInMonth(CurrentDate.Year, month);
+        int day = Math.Min(CurrentDate.Day, daysInNewMonth);
+
+        CurrentDate = new DateTime(CurrentDate.Year, month, day);
+        _showMonthDropdown = false;
+        GenerateCalendar(CurrentDate);
+    }
+
     private void SelectYear(int year)
     {
-        CurrentDate = new DateTime(year, CurrentDate.Month, 1);
+        // Clamp the day to the max day of the current month in the new year
+        int daysInMonth = DateTime.DaysInMonth(year, CurrentDate.Month);
+        int day = Math.Min(CurrentDate.Day, daysInMonth);
+
+        CurrentDate = new DateTime(year, CurrentDate.Month, day);
         _showYearDropdown = false;
         GenerateCalendar(CurrentDate);
     }

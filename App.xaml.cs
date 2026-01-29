@@ -9,7 +9,16 @@
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            return new Window(new MainPage()) { Title = "WorkJournal" };
+            var window = new Window(new MainPage())
+            {
+                Title = "WorkJournal",
+#if DEBUG
+                Width = 429,   // width in DIPs
+                Height = 929   // height in DIPs
+#endif
+            };
+
+            return window;
         }
     }
 }

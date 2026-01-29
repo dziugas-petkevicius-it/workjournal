@@ -3,7 +3,7 @@
 @inject AppBarTitleService TitleService
 @inject ILogger<Home> Logger
 
-<div class="flex p-4 bg-slate-100 h-full gap-2">
+<div class="flex p-4 bg-slate-100 h-full gap-2 select-none">
     <CalendarGrid @bind-SelectedWeek="SelectedWeek" />
 
     @if (SelectedWeek != null && SelectedWeek.Count > 0)

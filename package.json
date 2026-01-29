@@ -1,0 +1,23 @@
+{
+  "name": "workjournal",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dziugas-petkevicius-it/workjournal.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dziugas-petkevicius-it/workjournal/issues"
+  },
+  "homepage": "https://github.com/dziugas-petkevicius-it/workjournal#readme",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "tailwindcss": "^4.1.18"
+  }
+}
