@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/out/
+
+**/node_modules/
+
+.vs/
+.vscode/
+.idea/
+
+*.user
+*.suo
+
+.DS_Store

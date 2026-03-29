@@ -1,0 +1,158 @@
+﻿@page "/month"
+@using Microsoft.Extensions.Logging
+
+@inject ILogger<Month> Logger
+@inject IPageTitleService PageTitleService
+
+<div class="w-full h-full flex flex-col justify-center align-center">
+    Calendar div
+    <div class="flex flex-1 flex-col min-h-0">
+        Calendar grid
+        <div class="w-full max-h-[20%] border-1 border-white flex justify-between p-2"> 
+            <div @onclick="PrevMonth"
+                 class="cursor-pointer select-none">
+                 Select prev month
+             </div>
+
+            <div class="flex flex-row justify-between gap-2">
+                <div> Select year </div>
+                <div> Select month </div>
+            </div>
+
+            <div @onclick="NextMonth"
+                 class="cursor-pointer select-none">
+                 Select next month
+            </div>
+        </div>
+        <div class="flex flex-1 max-h-[10%] items-stretch w-full gap-1 p-1">
+            <div class="flex flex-1 p-1 bg-slate-600 rounded-md">
+                <!-- invisible chevron placeholder -->
+                <div class="w-10 flex items-center justify-center select-none"></div>
+
+                <!-- DAYS GRID -->
+                <div class="flex-1 grid grid-cols-7 gap-1 select-none">
+
+                    @foreach (var day in Weekdays)
+                    {
+                        <div class="flex items-center justify-center text-2xl font-bold text-white">
+                            @day
+                        </div>
+                    }
+
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-1 flex-col min-h-0 p-1">
+            @for (int i = 0; i < (int)Math.Ceiling(Days.Count / 7.0); i++)
+            {
+                var week = i;
+
+                <div class="flex flex-1 items-stretch w-full gap-1 p-1">
+
+                    <!-- WEEK SELECT CHEVRON -->
+                    <div class="w-10 flex items-center justify-center cursor-pointer select-none"
+                         @onclick="() => SelectWeek(week)">
+                        <i class="fa-solid fa-chevron-right text-white text-lg"></i>
+                    </div>
+
+                    <!-- DAYS GRID -->
+                    <div class="@($"flex-1 grid grid-cols-7 gap-1 ")">
+
+                        @foreach (var cell in Days.Skip(week * 7).Take(7))
+                        {
+                            if (!cell.IsCurrentMonth)
+                            {
+                                <div class="flex items-center justify-center text-white w-full h-full"></div>
+                                continue;
+                            }
+
+                            <div class="@($"flex items-center justify-center border rounded-md text-white text-2xl font-bold w-full h-full {(week == _selectedWeek ? "bg-red-500/30" : "")}")">
+                                @cell.Day
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code{
+    DateTime CurrentDate = DateTime.Now;
+    record CalendarCell(int? Day, bool IsCurrentMonth);
+    List<CalendarCell> Days = new List<CalendarCell>();
+    List<string> Weekdays = new List<string>();
+
+    int _selectedWeek = -1;
+
+    protected override void OnInitialized()
+    {
+        PageTitleService.SetPageTitle("Mėnesio kalendorius");
+        Days = BuildCalendar(CurrentDate.Year, CurrentDate.Month);
+        Weekdays = GetWeekdays();
+
+        base.OnInitialized();
+    }
+
+    void PrevMonth()
+    {
+        Logger.LogInformation("Selecting prev month");
+        CurrentDate = CurrentDate.AddMonths(-1);
+
+        RefreshCalendar();
+    }
+
+    void NextMonth()
+    {
+        Logger.LogInformation("Selecting next month");
+        CurrentDate = CurrentDate.AddMonths(1);
+
+        RefreshCalendar();
+    }
+
+    void SelectWeek(int weekIndex)
+    {
+        Logger.LogInformation($"Selecting {weekIndex}");
+        _selectedWeek = weekIndex;
+    }
+
+    void RefreshCalendar()
+    {
+        Days = BuildCalendar(CurrentDate.Year, CurrentDate.Month);
+        Weekdays = GetWeekdays();
+    }
+
+    List<CalendarCell> BuildCalendar(int year, int month)
+    {
+        var firstDay = new DateTime(year, month, 1);
+        int daysInMonth = DateTime.DaysInMonth(year, month);
+        int startOffset = (int)firstDay.DayOfWeek;
+
+        var cells = new List<CalendarCell>();
+
+        for (int i = 0; i < startOffset; i++)
+            cells.Add(new CalendarCell(null, false));
+
+        for (int day = 1; day <= daysInMonth; day++)
+            cells.Add(new CalendarCell(day, true));
+
+        return cells;
+    }
+
+    List<string> GetWeekdays()
+    {
+        var days = CultureInfo.CurrentCulture
+                               .DateTimeFormat
+                               .AbbreviatedDayNames
+                               .Select(x => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(x))
+                               .ToList();
+
+        var sunday = days[0];
+        days.RemoveAt(0);
+        days.Add(sunday);
+
+        return days;
+    }
+}

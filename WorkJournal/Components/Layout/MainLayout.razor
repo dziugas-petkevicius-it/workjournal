@@ -1,0 +1,56 @@
+﻿@inherits LayoutComponentBase
+
+@inject IPageTitleService PageTitleService
+@inject NavigationManager NavigationManager
+<div class="h-screen w-screen bg-slate-900 flex flex-col">
+    <div class="flex flex-1 flex-row select-none pt-6">
+        <div class="@($"flex flex-col bg-slate-900 transition-all duration-300 space-y-4 {(_drawerOpen ? "w-40 p-2" : "w-0 p-0")}")">
+            <div @onclick="@(() => Navigate("/", 0))"
+                 class="@($"cursor-pointer text-white p-2 flex items-center justify-center font-bold border-1 hover:border-blue-500 rounded-md {(_page == 0 ? "bg-blue-700" : "bg-blue-500")}")">
+                Kalendorius
+            </div>
+            <div @onclick="@(() => Navigate("/month", 1))"
+                 class="@($"cursor-pointer text-white p-2 flex items-center justify-center font-bold border-1 hover:border-blue-500 rounded-md {(_page == 1 ? "bg-blue-700" : "bg-blue-500")}")">
+                Mėnesis
+            </div>
+            <div @onclick="@(() => Navigate("/excel", 2))"
+                 class="@($"cursor-pointer text-white p-2 flex items-center justify-center font-bold border-1 hover:border-blue-500 rounded-md {(_page == 2 ? "bg-blue-700" : "bg-blue-500")}")">
+                Excel
+            </div>
+        </div>
+        <div class="flex flex-1 flex-col bg-slate-700">
+            <div class="select-none cursor-pointer">
+                <div @onclick="@(() => ToggleDrawer())"><i class="fa-solid fa-align-justify text-2xl text-white p-2" /></div>
+            </div>
+            <div class="flex flex-1 flex-row p-4 min-h-0">@Body</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _drawerOpen;
+    private int _page = 0;
+
+    protected override void OnInitialized()
+    {
+        var culture = new CultureInfo("lt-LT");
+
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+        PageTitleService.SetPageTitle("Kalendorius");
+
+        base.OnInitialized();
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void Navigate(string url, int page)
+    {
+        _page = page;
+        NavigationManager.NavigateTo(url);
+    }
+}

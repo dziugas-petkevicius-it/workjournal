@@ -1,0 +1,15 @@
+﻿@page "/month/{Date}"
+
+@code {
+    [Parameter] public string Date { get; set; } = "";
+
+    private int Year, Month, Day;
+
+    protected override void OnParametersSet()
+    {
+        var parts = Date.Split(':');
+        Year = int.Parse(parts[0]);
+        Month = int.Parse(parts[1]);
+        Day = int.Parse(parts[2]);
+    }
+}
