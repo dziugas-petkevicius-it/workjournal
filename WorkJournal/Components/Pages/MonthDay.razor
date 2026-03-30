@@ -1,15 +1,23 @@
-﻿@page "/month/{Date}"
+﻿@page "/month/day/{Date}"
+
+@inject NavigationManager NavigationManager
+
+<div class="cursor-pointer select-none"
+     @onclick="@(() => NavigationManager.NavigateTo($"/month/{Date}"))">
+    <i class="fa-chevron-left fa-solid text-white text-2xl !h-10 !w-10" />
+</div>
 
 @code {
-    [Parameter] public string Date { get; set; } = "";
+    [Parameter] public string Date { get; set; } = string.Empty;
 
     private int Year, Month, Day;
 
     protected override void OnParametersSet()
     {
-        var parts = Date.Split(':');
-        Year = int.Parse(parts[0]);
-        Month = int.Parse(parts[1]);
-        Day = int.Parse(parts[2]);
+        var date = DateOnly.ParseExact(Date, "yyyy-MM-dd", null);
+
+        Year = date.Year;
+        Month = date.Month;
+        Day = date.Day;
     }
 }

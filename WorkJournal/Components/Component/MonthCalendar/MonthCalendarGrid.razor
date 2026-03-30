@@ -1,0 +1,74 @@
+﻿@using WorkJournal.Models.MonthCalendar
+
+@inject NavigationManager NavigationManager
+
+<div class="flex flex-col p-2 h-full">
+
+    <div class="grid grid-cols-[40px_repeat(7,1fr)] grid-rows-6 gap-x-[60px] gap-y-[15px] flex-1 min-h-0">
+
+        @for (int i = 0; i < 6; i++)
+        {
+            var week = i;
+
+            <!-- WEEK ARROW -->
+            <div class="flex items-center justify-center cursor-pointer select-none text-white"
+                 @onclick="() => OnWeekClicked(week)">
+                <i class="fa-solid fa-chevron-right text-lg"></i>
+            </div>
+
+            <!-- DAYS -->
+            @for (int day = 0; day < 7; day++)
+            {
+                var j = week * 7 + day;
+                var cell = j < Days.Count ? Days[j] : null;
+
+                if (cell == null || !cell.IsCurrentMonth)
+                {
+                    <div></div>
+                    continue;
+                }
+
+                <div class="@GetDayClass(week, cell)"
+                     @onclick="() => OnDayClicked(cell.Date.ToUniversalTime())">
+                    @cell.Date.Day
+                </div>
+            }
+        }
+
+    </div>
+
+</div>
+
+@code {
+    [Parameter] public List<CalendarCell> Days { get; set; } = new();
+    [Parameter] public DateTime CurrentDate { get; set; }
+    [Parameter] public int SelectedWeek { get; set; }
+
+    [Parameter] public EventCallback<int> OnWeekSelected { get; set; }
+
+    async Task OnWeekClicked(int week)
+    {
+        await OnWeekSelected.InvokeAsync(week);
+    }
+
+    void OnDayClicked(DateTime date)
+    {
+        NavigationManager.NavigateTo($"/month/day/{date:yyyy-MM-dd}");
+    }
+
+    string GetDayClass(int week, CalendarCell cell)
+    {
+        var baseClass =
+            "flex items-center justify-center " +
+            "w-full h-full " +
+            "border rounded-xl text-white text-2xl font-bold shadow-lg";
+
+        if (week == SelectedWeek)
+            baseClass += " bg-red-500/30";
+
+        if (cell.Date.Date == DateTime.Today)
+            baseClass += " bg-blue-700";
+
+        return baseClass;
+    }
+}

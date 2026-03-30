@@ -9,7 +9,7 @@
                  class="@($"cursor-pointer text-white p-2 flex items-center justify-center font-bold border-1 hover:border-blue-500 rounded-md {(_page == 0 ? "bg-blue-700" : "bg-blue-500")}")">
                 Kalendorius
             </div>
-            <div @onclick="@(() => Navigate("/month", 1))"
+            <div @onclick="@(() => Navigate($"/month/{DateTime.UtcNow}", 1))"
                  class="@($"cursor-pointer text-white p-2 flex items-center justify-center font-bold border-1 hover:border-blue-500 rounded-md {(_page == 1 ? "bg-blue-700" : "bg-blue-500")}")">
                 Mėnesis
             </div>

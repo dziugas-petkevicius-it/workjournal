@@ -1,0 +1,105 @@
+﻿@using Microsoft.Extensions.Logging
+@inject ILogger<MonthCalendarHeader> Logger
+
+<div class="flex flex-row items-stretch w-full rounded-md">
+
+    <!-- LEFT COLUMN (aa) -->
+    <div class="w-10 flex items-center justify-center select-none" />
+
+    <!-- RIGHT COLUMN (2 rows) -->
+    <div class="flex flex-1 flex-col bg-slate-600 rounded-xl">
+
+        <!-- TOP ROW (controls) -->
+        <div class="flex flex-1 flex-row justify-between items-center p-5">
+            <div @onclick="OnPrevClicked"
+                 class="cursor-pointer select-none">
+                <i class="fa-solid fa-angles-left text-white text-2xl !h-10 !w-10"  />
+            </div>
+
+            <div class="flex flex-row min-w-[30%] gap-2 justify-center">
+                <Select TValue="int"
+                        ParentClass="max-w-[25%]"
+                        SelectClass="text-2xl"
+                        Items="Years"
+                        Value="CurrentDate.Year"
+                        ValueChanged="OnYearSelect" />
+
+                <Select TValue="int"
+                        ParentClass="max-w-[35%]"
+                        SelectClass="text-2xl"
+                        Items="Enumerable.Range(1,12)"
+                        Value="CurrentDate.Month"
+                        ValueChanged="OnMonthSelect"
+                        TextSelector="GetMonthName" />
+            </div>
+
+            <div @onclick="OnNextClicked"
+                 class="cursor-pointer select-none">
+                <i class="fa-solid fa-angles-right text-white text-2xl !h-10 !w-10" />
+            </div>
+        </div>
+
+        <!-- BOTTOM ROW (weekdays grid) -->
+        <div class="grid grid-cols-7 gap-1 select-none px-2 pb-2">
+            @foreach (var day in Weekdays)
+            {
+                <div class="flex items-center justify-center text-2xl font-bold text-white">
+                    @day
+                </div>
+            }
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public DateTime CurrentDate { get; set; }
+    [Parameter] public List<string> Weekdays { get; set; } = new();
+
+    [Parameter] public EventCallback OnPrevMonth { get; set; }
+    [Parameter] public EventCallback OnNextMonth { get; set; }
+
+    [Parameter] public EventCallback<int> OnYearSelect { get; set; }
+    [Parameter] public EventCallback<int> OnMonthSelect { get; set; }
+
+    List<int> Years { get; set; } = new List<int>();
+
+    protected override void OnInitialized()
+    {
+        Years = Enumerable.Range(CurrentDate.Year - 10, 21).ToList();
+
+        base.OnInitialized();
+    }
+
+    private string GetMonthName(int month)
+    {
+        var name = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
+
+        if (string.IsNullOrWhiteSpace(name))
+            return name;
+
+        return char.ToUpper(name[0]) + name[1..];
+    }
+
+    async Task OnPrevClicked()
+    {
+        await OnPrevMonth.InvokeAsync();
+    }
+
+    async Task OnNextClicked()
+    {
+        await OnNextMonth.InvokeAsync();
+    }
+
+    async Task OnYearChanged(ChangeEventArgs e)
+    {
+        int year = int.Parse(e.Value!.ToString()!);
+        await OnYearSelect.InvokeAsync(year);
+    }
+
+    async Task OnMonthChanged(ChangeEventArgs e)
+    {
+        int month = int.Parse(e.Value!.ToString()!);
+        await OnMonthSelect.InvokeAsync(month);
+    }
+}

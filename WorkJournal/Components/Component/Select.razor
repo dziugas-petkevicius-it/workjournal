@@ -1,0 +1,46 @@
+﻿@typeparam TValue
+
+<div class="@($"relative flex-1 w-full {ParentClass}")">
+    <select class="@($"appearance-none bg-slate-700 text-white px-3 py-2 pr-10 rounded-lg border border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:ring-2 hover:ring-blue-500  flex-1 w-full {SelectClass}")"
+            value="@Value"
+            @onchange="OnChange">
+
+        @foreach (var item in Items)
+        {
+            <option value="@GetValue(item)">
+                @GetText(item)
+            </option>
+        }
+
+    </select>
+
+    <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+        <i class="fa-solid fa-chevron-down text-white/70"></i>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<TValue> Items { get; set; } = [];
+    [Parameter] public TValue? Value { get; set; }
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+
+    [Parameter] public Func<TValue, string>? TextSelector { get; set; }
+    [Parameter] public Func<TValue, string>? ValueSelector { get; set; }
+
+    [Parameter] public string ParentClass { get; set; } = string.Empty;
+    [Parameter] public string SelectClass { get; set; } = string.Empty;
+
+    private string GetText(TValue item)
+        => TextSelector?.Invoke(item) ?? item?.ToString() ?? "";
+
+    private string GetValue(TValue item)
+        => ValueSelector?.Invoke(item) ?? item?.ToString() ?? "";
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        if (e.Value is null) return;
+
+        var value = (TValue)Convert.ChangeType(e.Value, typeof(TValue))!;
+        await ValueChanged.InvokeAsync(value);
+    }
+}
